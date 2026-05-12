@@ -1,4 +1,3 @@
-
 <?php
 
 require_once __DIR__ . '/includes/config.php';
@@ -6,14 +5,42 @@ require_once __DIR__ . '/includes/functions.php';
 
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-/* =========================
-   CONFIG
-========================= */
 $adminEmail = 'admin@uob.edu.bh';
+$error = '';
 
-/* =========================
-   Page Setup
-========================= */
+function safe_to(string $to, string $fallback = 'index.php'): string {
+  $to = trim($to);
+  if ($to === '') return $fallback;
+  if (preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $to)) return $fallback;
+  if (str_starts_with($to, '//')) return $fallback;
+  if (preg_match('~^[a-zA-Z]:\\\\~', $to)) return $fallback;
+  return ltrim($to);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $email = strtolower(trim($_POST['email'] ?? ''));
+
+  if ($email === strtolower($adminEmail)) {
+    $_SESSION['user_email'] = $email;
+    $_SESSION['role'] = 'admin';
+  } elseif (str_ends_with($email, '@stu.uob.edu.bh')) {
+    $_SESSION['user_email'] = $email;
+    $_SESSION['role'] = 'user';
+  } else {
+    $error = "غير مسموح. يجب استخدام بريد جامعي ينتهي بـ @stu.uob.edu.bh";
+  }
+
+  if (!$error) {
+    $defaultTo = ($_SESSION['role'] === 'admin')
+      ? 'admin/review-agreements.php'
+      : 'index.php';
+
+    $to = safe_to($_GET['to'] ?? '', $defaultTo);
+    header("Location: " . $to);
+    exit;
+  }
+}
+
 $pageTitle = "تسجيل الدخول";
 $pageSubtitle = "الدخول لطلاب الجامعة (@stu.uob.edu.bh) — والأدمن بريد محدد.";
 $breadcrumb = [
@@ -21,60 +48,6 @@ $breadcrumb = [
 ];
 
 require_once __DIR__ . '/header.php';
-
-$error = '';
-
-/* =========================
-   Safe Redirect
-========================= */
-function safe_to(string $to, string $fallback = 'index.php'): string {
-  $to = trim($to);
-  if ($to === '') return $fallback;
-
-  // منع روابط خارجية
-  if (preg_match('~^[a-zA-Z][a-zA-Z0-9+.-]*://~', $to)) return $fallback;
-  if (str_starts_with($to, '//')) return $fallback;
-
-  // منع مسارات ويندوز
-  if (preg_match('~^[a-zA-Z]:\\\\~', $to)) return $fallback;
-
-  return ltrim($to);
-}
-
-/* =========================
-   LOGIN
-========================= */
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-  $email = strtolower(trim($_POST['email'] ?? ''));
-
-  if ($email === strtolower($adminEmail)) {
-    // ADMIN
-    $_SESSION['user_email'] = $email;
-    $_SESSION['role'] = 'admin';
-
-  } elseif (str_ends_with($email, '@stu.uob.edu.bh')) {
-    // USER
-    $_SESSION['user_email'] = $email;
-    $_SESSION['role'] = 'user';
-
-  } else {
-    $error = "غير مسموح. يجب استخدام بريد جامعي ينتهي بـ @stu.uob.edu.bh";
-  }
-
-  if (!$error) {
-
-    // redirect
-    $defaultTo = ($_SESSION['role'] === 'admin')
-      ? 'admin/review-agreements.php'
-      : 'index.php';
-
-    $to = safe_to($_GET['to'] ?? '', $defaultTo);
-
-    header("Location: " . $to);
-    exit;
-  }
-}
 ?>
 
 <div class="row justify-content-center">
